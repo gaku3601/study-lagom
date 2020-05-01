@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <profile name="sbt 1" modules="hello-world,hello-world-api,hello-world-impl,hello-world-stream-api,hello-world-stream-impl,hello-world_7751,lagom-internal-meta-project-cassandra,lagom-internal-meta-project-kafka,lagom-internal-meta-project-service-locator" />
+  </component>
+</project>
