@@ -21,43 +21,38 @@ import play.api.libs.json._
 import scala.collection.immutable.Seq
 
 /**
-  * This provides an event sourced behavior. It has a state, [[HelloWorldState]], which
-  * stores what the greeting should be (eg, "Hello").
+  * これにより、イベントソースの動作が提供されます。状態[[HelloWorld State]]があり、
+  * 挨拶の内容が格納されています（例： "Hello"）。
   *
-  * Event sourced entities are interacted with by sending them commands. This
-  * aggregate supports two commands, a [[UseGreetingMessage]] command, which is
-  * used to change the greeting, and a [[Hello]] command, which is a read
-  * only command which returns a greeting to the name specified by the command.
+  * イベントソースのエンティティは、コマンドを送信することで相互作用します。
+  * この集約は、greetingを変更するために使用される[[UseGreetingMessage]]コマンドと、
+  * コマンドで指定された名前にgreetingを返す読み取り専用コマンドである[[Hello]]コマンドの2つのコマンドをサポートします。
   *
-  * Commands get translated to events, and it's the events that get persisted.
-  * Each event will have an event handler registered for it, and an
-  * event handler simply applies an event to the current state. This will be done
-  * when the event is first created, and it will also be done when the aggregate is
-  * loaded from the database - each event will be replayed to recreate the state
-  * of the aggregate.
+  * コマンドはイベントに変換され、永続化されるのはイベントです。各イベントにはイベントハンドラーが登録されており、
+  * イベントハンドラーはイベントを現在の状態に適用するだけです。これは、イベントが最初に作成されたときに行われ、
+  * データベースからアグリゲートがロードされたときにも行われます。各イベントが再生され、アグリゲートの状態が再作成されます。
   *
-  * This aggregate defines one event, the [[GreetingMessageChanged]] event,
-  * which is emitted when a [[UseGreetingMessage]] command is received.
+  * この集約は、1つのイベント[[GreetingMessageChanged]]イベントを定義します。
+  * このイベントは、[[UseGreetingMessage]]コマンドを受け取ったときに発行されます。
   */
 object HelloWorldBehavior {
 
   /**
-    * Given a sharding [[EntityContext]] this function produces an Akka [[Behavior]] for the aggregate.
+    * シャーディング[[EntityContext]]を指定すると、この関数は集約のAkka [[Behavior]]を生成します。
     */ 
   def create(entityContext: EntityContext[HelloWorldCommand]): Behavior[HelloWorldCommand] = {
     val persistenceId: PersistenceId = PersistenceId(entityContext.entityTypeKey.name, entityContext.entityId)
 
     create(persistenceId)
       .withTagger(
-        // Using Akka Persistence Typed in Lagom requires tagging your events
-        // in Lagom-compatible way so Lagom ReadSideProcessors and TopicProducers
-        // can locate and follow the event streams.
+        // Lagomで入力されたAkka Persistenceを使用するには、Lagom互換の方法でイベントにタグを付ける必要があります。
+        // これにより、Lagom ReadSideProcessorsとTopicProducersがイベントストリームを見つけて追跡できるようになります。
         AkkaTaggerAdapter.fromLagom(entityContext, HelloWorldEvent.Tag)
       )
 
   }
   /*
-   * This method is extracted to write unit tests that are completely independendant to Akka Cluster.
+   * このメソッドは、Akka Clusterに完全に依存しない単体テストを記述するために抽出されています。
    */
   private[impl] def create(persistenceId: PersistenceId) = EventSourcedBehavior
       .withEnforcedReplies[HelloWorldCommand, HelloWorldEvent, HelloWorldState](
@@ -69,7 +64,7 @@ object HelloWorldBehavior {
 }
 
 /**
-  * The current state of the Aggregate.
+  * 集計の現在の状態。
   */
 case class HelloWorldState(message: String, timestamp: String) {
   def applyCommand(cmd: HelloWorldCommand): ReplyEffect[HelloWorldEvent, HelloWorldState] =
@@ -101,32 +96,30 @@ case class HelloWorldState(message: String, timestamp: String) {
 object HelloWorldState {
 
   /**
-    * The initial state. This is used if there is no snapshotted state to be found.
+    * 初期状態。これは、検出するスナップショット状態がない場合に使用されます。
     */
   def initial: HelloWorldState = HelloWorldState("Hello", LocalDateTime.now.toString)
 
   /**
-    * The [[EventSourcedBehavior]] instances (aka Aggregates) run on sharded actors inside the Akka Cluster.
-    * When sharding actors and distributing them across the cluster, each aggregate is
-    * namespaced under a typekey that specifies a name and also the type of the commands
-    * that sharded actor can receive.
+    * [[EventSourcedBehavior]]インスタンス（別名Aggregates）は、Akkaクラスター内のシャーディングされた
+    * アクターで実行されます。アクターをシャーディングしてクラスター全体に分散する場合、
+    * 各アグリゲートは、名前とシャーディングされたアクターが受信できるコマンドのタイプを指定するタイプキーの下で名前空間に割り当てられます。
     */
   val typeKey = EntityTypeKey[HelloWorldCommand]("HelloWorldAggregate")
 
   /**
-    * Format for the hello state.
+    * hello状態のフォーマット。
     *
-    * Persisted entities get snapshotted every configured number of events. This
-    * means the state gets stored to the database, so that when the aggregate gets
-    * loaded, you don't need to replay all the events, just the ones since the
-    * snapshot. Hence, a JSON format needs to be declared so that it can be
-    * serialized and deserialized when storing to and from the database.
+    * 永続化されたエンティティは、設定された数のイベントごとにスナップショットを取得します。
+    * これは、状態がデータベースに保存されることを意味します。これにより、集計が読み込まれたときに、
+    * スナップショット以降のイベントだけを再生する必要はありません。したがって、JSON形式は、
+    * データベースとの間で保管するときにシリアライズおよびデシリアライズできるように宣言する必要があります。
     */
   implicit val format: Format[HelloWorldState] = Json.format
 }
 
 /**
-  * This interface defines all the events that the HelloWorldAggregate supports.
+  * このインターフェイスは、HelloWorldAggregateがサポートするすべてのイベントを定義します。
   */
 sealed trait HelloWorldEvent extends AggregateEvent[HelloWorldEvent] {
   def aggregateTag: AggregateEventTag[HelloWorldEvent] = HelloWorldEvent.Tag
@@ -137,48 +130,46 @@ object HelloWorldEvent {
 }
 
 /**
-  * An event that represents a change in greeting message.
+  * greetingメッセージの変化を表すイベント。
   */
 case class GreetingMessageChanged(message: String) extends HelloWorldEvent
 
 object GreetingMessageChanged {
 
   /**
-    * Format for the greeting message changed event.
-    *
-    * Events get stored and loaded from the database, hence a JSON format
-    * needs to be declared so that they can be serialized and deserialized.
-    */
+   * greetingメッセージ変更イベントのフォーマット。
+   *
+   * イベントはデータベースから保存およびロードされるため、
+   * シリアル化および逆シリアル化できるようにJSON形式を宣言する必要があります。
+   */
   implicit val format: Format[GreetingMessageChanged] = Json.format
 }
 
 /**
   * This is a marker trait for commands.
-  * We will serialize them using Akka's Jackson support that is able to deal with the replyTo field.
+  * これらは、replyToフィールドを処理できるAkkaのJacksonサポートを使用してシリアル化します。
   * (see application.conf)
   */
 trait HelloWorldCommandSerializable
 
 /**
-  * This interface defines all the commands that the HelloWorldAggregate supports.
+  * このインターフェイスは、HelloWorldAggregateがサポートするすべてのコマンドを定義します。
   */
 sealed trait HelloWorldCommand
     extends HelloWorldCommandSerializable
 
 /**
-  * A command to switch the greeting message.
-  *
-  * It has a reply type of [[Confirmation]], which is sent back to the caller
-  * when all the events emitted by this command are successfully persisted.
+  * greetingメッセージを切り替えるコマンド。
+  * 応答タイプは[[Confirmation]]であり、このコマンドによって
+  * 発行されたすべてのイベントが正常に永続化されると、呼び出し元に返信されます。
   */
 case class UseGreetingMessage(message: String, replyTo: ActorRef[Confirmation])
     extends HelloWorldCommand
 
 /**
-  * A command to say hello to someone using the current greeting message.
+  * 現在のgreetingメッセージを使用している人に挨拶するコマンド。
   *
-  * The reply type is String, and will contain the message to say to that
-  * person.
+  * 返信タイプは文字列で、その人に言うメッセージが含まれます。
   */
 case class Hello(name: String, replyTo: ActorRef[Greeting])
     extends HelloWorldCommand
@@ -223,13 +214,12 @@ object Rejected {
 }
 
 /**
-  * Akka serialization, used by both persistence and remoting, needs to have
-  * serializers registered for every type serialized or deserialized. While it's
-  * possible to use any serializer you want for Akka messages, out of the box
-  * Lagom provides support for JSON, via this registry abstraction.
+  * 永続化とリモート処理の両方で使用されるAkkaシリアル化では、シリアル化または
+  * 逆シリアル化されたすべての型に対してシリアライザを登録する必要があります。
+  * Akkaメッセージに任意のシリアライザーを使用することは可能ですが、
+  * そのままの状態でLagomはこのレジストリ抽象化を介してJSONをサポートします。
   *
-  * The serializers are registered here, and then provided to Lagom in the
-  * application loader.
+  * シリアライザはここに登録され、アプリケーションローダーでLagomに提供されます。
   */
 object HelloWorldSerializerRegistry extends JsonSerializerRegistry {
   override def serializers: Seq[JsonSerializer[_]] = Seq(
